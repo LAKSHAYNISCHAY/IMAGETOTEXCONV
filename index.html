@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image to Blogger Post</title>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@2.1.1/dist/tesseract.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; }
+        .container { display: flex; flex-direction: column; align-items: center; }
+        .upload-section { text-align: center; margin-bottom: 20px; }
+        .image-preview { width: 300px; height: 200px; border: 1px solid #ccc; overflow: hidden; margin-bottom: 20px; }
+        .processing-section { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        
+        /* Circular progress */
+        .circular-progress {
+            position: relative;
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            background: conic-gradient(#4CAF50 var(--progress), #f0f0f0 0);
+        }
+        .circular-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 16px;
+        }
+
+        /* Rectangular progress bar */
+        .rectangular-progress { 
+            width: 200px; 
+            height: 20px; 
+            background-color: #f0f0f0; 
+            border: 1px solid #ccc; 
+            margin-top: 10px; 
+        }
+        .rectangular-progress-fill { 
+            height: 100%; 
+            background-color: #4CAF50; 
+            width: 0%; 
+            transition: width 0.5s ease-in-out; 
+        }
+        .result-box { 
+            margin-top: 20px; 
+            padding: 20px; 
+            border: 1px solid #ccc; 
+            border-radius: 5px; 
+            background-color: #f5f5f5; 
+        }
+        .result-box h2 { text-align: center; }
+        .result-item { margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="upload-section">
+            <input type="file" id="imageInput" accept="image/*">
+            <button class="upload-button">Upload Image</button>
+        </div>
+        <div class="image-preview">
+            <img id="image-preview-img" src="" alt="Uploaded Image" style="max-width: 100%; max-height: 100%;">
+        </div>
+
+        <!-- Processing animation -->
+        <div id="processing" class="processing-section" style="display: none;">
+            <!-- Circular progress animation -->
+            <div class="circular-progress" style="--progress: 0deg;">
+                <div class="circular-text" id="circular-percentage">0%</div>
+            </div>
+            <!-- Rectangular progress bar -->
+            <div class="rectangular-progress">
+                <div class="rectangular-progress-fill"></div>
+            </div>
+        </div>
+
+        <!-- Result box -->
+        <div id="result-box" class="result-box" style="display: none;">
+            <h2>Results</h2>
+            <div id="result-content"></div>
+            <button class="copy-button">Copy Results</button>
+        </div>
+
+        <!-- Error message area -->
+        <div id="error" class="error" style="color: red;"></div>
+    </div>
+
+    <script>
+        function processImage() {
+            const file = document.getElementById('imageInput').files[0];
+            const imagePreview = document.getElementById('image-preview-img');
+            const progressPercentage = document.getElementById('circular-percentage');
+            const errorDiv = document.getElementById('error');
+            const resultBox = document.getElementById('result-box');
+            const processingDiv = document.getElementById('processing');
+            const rectangularFill = document.querySelector('.rectangular-progress-fill');
+            const circularProgress = document.querySelector('.circular-progress');
+
+            if (!file) {
+                errorDiv.textContent = 'Please select an image file.';
+                return;
+            }
+
+            errorDiv.textContent = ''; // Clear error
+            resultBox.style.display = 'none'; // Hide results during processing
+            processingDiv.style.display = 'flex'; // Show progress
+
+            imagePreview.src = URL.createObjectURL(file); // Show image preview
+
+            // Process the image with Tesseract.js
+            Tesseract.recognize(file, 'eng+hin', {
+                logger: m => {
+                    if (m.progress) {
+                        const progress = Math.round(m.progress * 100);
+                        
+                        // Update circular progress
+                        circularProgress.style.setProperty('--progress', `${progress * 3.6}deg`);
+                        progressPercentage.textContent = `${progress}%`;
+
+                        // Update rectangular progress bar
+                        rectangularFill.style.width = `${progress}%`;
+                    }
+                }
+            }).then(({ data: { text } }) => {
+                document.getElementById('result-content').innerHTML = generateResultHTML(text);
+                processingDiv.style.display = 'none'; // Hide progress
+                resultBox.style.display = 'block'; // Show result box
+            }).catch(error => {
+                errorDiv.textContent = 'An error occurred: ' + error.message;
+                processingDiv.style.display = 'none'; // Hide progress
+            });
+        }
+
+        function generateResultHTML(text) {
+            const lines = text.split('\n');
+            let htmlContent = '';
+
+            // Assume questions and answers alternate
+            for (let i = 0; i < lines.length; i += 2) {
+                const question = lines[i];
+                const answer = lines[i + 1] ? lines[i + 1] : "N/A";
+
+                if (question.trim()) {
+                    htmlContent += `<div class="result-item"><strong>${question}</strong>: ${answer}</div>`;
+                }
+            }
+
+            return htmlContent;
+        }
+
+        // Add event listener for the upload button
+        document.querySelector('.upload-button').addEventListener('click', processImage);
+    </script>
+</body>
+</html>
